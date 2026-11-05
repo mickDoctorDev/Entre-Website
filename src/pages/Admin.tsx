@@ -2,14 +2,17 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import CityMap from '../components/CityMap'
 import { ago } from '../lib/geo'
+import AdminPoints from './AdminPoints'
 import { awardPoints, setStatus, useStore, type Status } from '../lib/store'
 
 const WASTE = [['ขยะทั่วไป', 38, '#7FA896'], ['รีไซเคิล', 31, '#3DFFA0'], ['เศษอาหาร', 22, '#B6F23D'], ['อันตราย', 9, '#FF6B6B']] as const
-const NAV = ['Overview', 'Fleet', 'Points', 'Settings']
+const NAV = [['overview', 'Overview'], ['fleet', 'Fleet'], ['points', 'Points'], ['settings', 'Settings']] as const
+type Tab = 'overview' | 'points'
 
 export default function Admin() {
   const s = useStore()
   const [now, setNow] = useState(new Date())
+  const [tab, setTab] = useState<Tab>('overview')
   const [member, setMember] = useState('')
   const [amt, setAmt] = useState(1)
   const [err, setErr] = useState('')
@@ -31,19 +34,24 @@ export default function Admin() {
     <div className="admin">
       <aside className="side">
         <div className="brand"><span className="dot" />T·POINT<small>OPS</small></div>
-        {NAV.map((n, i) => <a key={n} className={i === 0 ? 'on' : ''} href="#">{n}</a>)}
+        {NAV.map(([k, label]) => {
+          const live = k === 'overview' || k === 'points'
+          return <button key={k} className={`nav-b${tab === k ? ' on' : ''}`} disabled={!live} aria-current={tab === k ? 'page' : undefined} onClick={() => live && setTab(k)}>{label}</button>
+        })}
         <Link to="/" className="back">← Public app</Link>
       </aside>
 
       <main className="main">
         <header className="a-top">
-          <div><p className="eyebrow">PATHUM WAN · BANGKOK</p><h1>Command Center</h1></div>
+          <div><p className="eyebrow">PATHUM WAN · BANGKOK</p><h1>{tab === 'points' ? 'Points' : 'Command Center'}</h1></div>
           <div className="a-status">
             <span className="pill"><i className="live" /> GPS · MOCK</span>
             <span className="clock">{now.toLocaleTimeString('en-GB')}</span>
           </div>
         </header>
 
+        {tab === 'points' && <AdminPoints />}
+        {tab === 'overview' && <>
         <section className="kpis">
           <Kpi label="Trucks online" value={`${online}/${s.trucks.length}`} />
           <Kpi label="Toilet entries" value={s.entries.toLocaleString()} />
@@ -104,6 +112,7 @@ export default function Admin() {
             </ul>
           </div>
         </section>
+        </>}
       </main>
     </div>
   )

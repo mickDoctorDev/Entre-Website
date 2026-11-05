@@ -116,3 +116,16 @@ export async function awardPoints(email: string, amount: number): Promise<string
   emit({ ...state, tIssued: state.tIssued + amount, feed: [feed('earn', `${email} ได้รับ +${amount} T · เจ้าหน้าที่ยืนยัน`), ...state.feed].slice(0, 30) })
   return null
 }
+
+/** Admin only: add points by member_code with a free amount. Returns an error message, or null on success. */
+export async function awardByCode(code: string, amount: number): Promise<string | null> {
+  if (sb) {
+    const { error } = await sb.rpc('award_points', { p_code: code, p_amount: amount })
+    if (error) {
+      const m = error.message
+      return m.includes('unknown member') ? 'ไม่พบรหัสสมาชิกนี้' : m.includes('admin only') ? 'เฉพาะ admin เท่านั้นที่เพิ่ม Point ได้' : m.includes('amount') ? 'จำนวนต้องอยู่ระหว่าง 1–500' : 'เกิดข้อผิดพลาด ลองใหม่อีกครั้ง'
+    }
+  }
+  emit({ ...state, tIssued: state.tIssued + amount, feed: [feed('earn', `${code} ได้รับ +${amount} T · admin`), ...state.feed].slice(0, 30) })
+  return null
+}
