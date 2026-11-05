@@ -11,7 +11,7 @@ Without `.env` the app runs on **mock** GPS trucks and a **mock** local login.
 
 ## Connect Supabase
 1. Create a project at supabase.com.
-2. SQL Editor → run `supabase/migrations/0001_init.sql`, `0002_drop_stations.sql`, `0003_award_by_email.sql`, then `supabase/seed.sql`.
+2. SQL Editor → run `supabase/migrations/0001_init.sql`, `0002_drop_stations.sql`, `0003_award_by_email.sql`, `0004_admin_award_by_code.sql`, `0005_award_to.sql`, then `supabase/seed.sql`.
 3. Project Settings → API: copy **Project URL** and the **anon public** key into `.env` (see `.env.example`). Never use or commit the `service_role` key.
 4. Authentication → Providers → Email: for quick testing turn off "Confirm email".
 5. Register in the app, then make yourself staff in the SQL Editor:
@@ -27,4 +27,4 @@ Staff/admin can change truck status and award points (`award_points` RPC). Membe
 ## Not done yet
 Wallet page, `redeem_toilet` UI + entry code, real GPS ingest (Edge Function), refund of unused entry codes.
 
-Admin → "Award T Points" takes the **member's email** (the email they registered with).
+Admin → "Award T Points" (Overview) takes the member's **email or member_code** in one field plus an amount. Staff can give 1–20 T per call, admin 1–500 (`award_points_to`).

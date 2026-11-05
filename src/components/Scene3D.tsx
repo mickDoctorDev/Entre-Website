@@ -64,8 +64,8 @@ const Building = ({ x, z, w, h, d, c }: { x: number; z: number; w: number; h: nu
 function World() {
   return (
     <group>
-      <mesh position={[0, -0.25, 0]} receiveShadow><boxGeometry args={[25, 0.5, 25]} /><meshStandardMaterial color="#CFEFD9" /></mesh>
-      <mesh position={[0, -0.75, 0]}><boxGeometry args={[25.6, 0.5, 25.6]} /><meshStandardMaterial color="#A7D9B8" /></mesh>
+      <mesh position={[0, -0.25, 0]} receiveShadow><boxGeometry args={[40, 0.5, 40]} /><meshStandardMaterial color="#CFEFD9" /></mesh>
+      <mesh position={[0, -0.75, 0]}><boxGeometry args={[40.6, 0.5, 40.6]} /><meshStandardMaterial color="#A7D9B8" /></mesh>
       <Ring outer={[8.3, 2.4]} inner={[6.9, 2.1]} y={0.01} color="#F6F8FB" />
       <Ring outer={[6.9, 2.1]} inner={[4.3, 1]} y={0.01} color="#DCE6F2" />
       <Ring outer={[5.65, 1.7]} inner={[5.55, 1.65]} y={0.08} color="#fff" />
@@ -87,6 +87,9 @@ function World() {
       <Building x={5} z={-9.6} w={2.4} h={4} d={2.4} c="#B5EACD" />
       <Building x={-5} z={9.6} w={2.4} h={3.4} d={2.4} c="#D2C9FF" />
       <Building x={5} z={9.6} w={2.4} h={2.6} d={2.4} c="#FFC9B2" />
+      {/* outer ring of buildings and trees so the scene fills a full screen */}
+      {([[14, -3, 3, '#B9DBFA'], [14, 4, 4.2, '#FFE38A'], [14, -9, 2.6, '#FFC9B2'], [14, 10, 3.4, '#D2C9FF'], [-14, 3, 3.6, '#FFC9B2'], [-14, -4, 2.8, '#B5EACD'], [-14, 9, 4, '#B9DBFA'], [-14, -10, 3, '#FFE38A'], [3, 14, 3.2, '#D2C9FF'], [-3, 14, 4.4, '#B5EACD'], [9, -14, 2.8, '#FFC9B2'], [-8, -14, 3.6, '#FFE38A'], [8, 14, 3, '#B9DBFA'], [-9, 14, 2.6, '#FFC9B2']] as const).map(([x, z, h, c], i) => <Building key={`o${i}`} x={x} z={z} w={2.4} h={h} d={2.4} c={c} />)}
+      {[[17, 0], [-17, 0], [0, 17], [0, -17], [17, 13], [-17, -13], [13, -17], [-13, 17], [12, 12], [-12, -12], [12, -12], [-12, 12]].map(([x, z], i) => <Tree key={`t${i}`} x={x} z={z} s={0.9 + (i % 3) * 0.15} />)}
       {[[-3, -3], [3, -3.2], [-3.2, 3], [3.1, 3], [10.8, 3], [-10.8, -3], [0, 10.8], [0, -10.8]].map(([x, z], i) => <Tree key={i} x={x} z={z} s={0.8 + (i % 3) * 0.12} />)}
     </group>
   )
@@ -103,7 +106,7 @@ function uNear(curve: THREE.CatmullRomCurve3, x: number, z: number) {
   return best
 }
 
-function TruckModel({ curve, color, stopU, speed, start, parked, info, all }: { curve: THREE.CatmullRomCurve3; color: string; stopU: number; speed: number; start: number; parked: boolean; info: Info; all: Info[] }) {
+function TruckModel({ curve, color, stopU, speed, start, parked, info, all, pace }: { curve: THREE.CatmullRomCurve3; color: string; stopU: number; speed: number; start: number; parked: boolean; info: Info; all: Info[]; pace: number }) {
   const root = useRef<THREE.Group>(null!), bed = useRef<THREE.Group>(null!), wheels = useRef<THREE.Group>(null!), spill = useRef<THREE.Group>(null!)
   const length = useMemo(() => curve.getLength(), [curve])
   const s = useRef({ u: start, dump: -1, spin: 0 })
@@ -120,7 +123,7 @@ function TruckModel({ curve, color, stopU, speed, start, parked, info, all }: { 
           const gap = (((o.u - st.u) % 1 + 1) % 1) * length
           if (gap < 4.6) k = Math.min(k, Math.max(0, (gap - 3.4) / 1.2))
         }
-        const step = (dt * speed * k) / length
+        const step = (dt * speed * pace * k) / length
         st.u = (st.u + step) % 1; st.spin += (step * length) / 0.32
         if (ahead < 0.004 || ahead > 0.995) st.dump = 0
       } else {
@@ -193,7 +196,7 @@ function Figure({ b, shirt, bag }: { b: Body; shirt: string; bag?: boolean }) {
   )
 }
 
-function Person({ curve, start, speed, shirt, bag }: { curve: THREE.CatmullRomCurve3; start: number; speed: number; shirt: string; bag?: boolean }) {
+function Person({ curve, start, speed, shirt, bag, show }: { curve: THREE.CatmullRomCurve3; start: number; speed: number; shirt: string; bag?: boolean; show: boolean }) {
   const b = useBody()
   const length = useMemo(() => curve.getLength(), [curve])
   const u = useRef(start)
@@ -201,6 +204,7 @@ function Person({ curve, start, speed, shirt, bag }: { curve: THREE.CatmullRomCu
     const dt = Math.min(dt0, 0.05)
     if (!REDUCE) u.current = (u.current + (dt * speed) / length) % 1
     place(b.root.current, curve, u.current)
+    b.root.current.visible = show
     const w = REDUCE ? 0 : Math.sin(st.clock.elapsedTime * 7 + start * 30)
     b.root.current.position.y = Math.abs(w) * 0.06
     swing(b, w)
@@ -251,7 +255,8 @@ function Rig({ onFrame }: { onFrame: () => void }) {
   useFrame((st) => {
     if (first.current) { first.current = false; onFrame() } // 3D is drawing: drop the placeholder
     const o = camera as THREE.OrthographicCamera
-    o.zoom = Math.min(size.width / 30, size.height / 19)
+    // landscape: cover the screen; portrait (phones): fit the city across the width
+    o.zoom = size.width > size.height ? Math.max(size.width / 44, size.height / 30) : size.width / 24
     const az = Math.PI / 4 + (REDUCE ? 0 : Math.sin(st.clock.elapsedTime * 0.15) * 0.2)
     camera.position.set(Math.sin(az) * 24, 16, Math.cos(az) * 24); camera.lookAt(0, 0.8, 0); o.updateProjectionMatrix()
   })
@@ -265,12 +270,22 @@ const STOPS: Stop[] = [
   { lane: 1, at: [6.4, 2.75], dir: [1, 0], dH: 2.0, dS: 1.3, start: 0.3, speed: 2.6, color: '#FFB020', shirt: '#2F9BFF' },
   { lane: 1, at: [-6.4, -2.75], dir: [-1, 0], dH: 2.0, dS: 1.3, start: 0.8, speed: 2.6, color: '#FF7A66', shirt: '#10B26C' },
 ]
-const WALKERS: [number, number, number, string, boolean][] = [ // [loop, start, speed, shirt, carries a bag]
-  [0, 0.05, 1.1, '#FF7A66', true], [0, 0.22, 0.9, '#2F9BFF', false], [0, 0.4, 1.0, '#7C6CFF', false], [0, 0.58, 1.2, '#FFC83D', true], [0, 0.8, 1.05, '#10B26C', true],
-  [1, 0.1, 1.05, '#2F9BFF', false], [1, 0.3, 0.95, '#FF7A66', true], [1, 0.5, 1.15, '#7C6CFF', false], [1, 0.7, 1.0, '#FFC83D', false], [1, 0.9, 1.1, '#10B26C', true],
+const WALKERS: [number, number, number, string, boolean][] = [ // [loop, start, speed, shirt, carries a bag] — alternating pavements
+  [0, 0.05, 1.1, '#FF7A66', true],
+  [1, 0.1, 1.05, '#2F9BFF', false],
+  [0, 0.22, 0.9, '#2F9BFF', false],
+  [1, 0.3, 0.95, '#FF7A66', true],
+  [0, 0.4, 1.0, '#7C6CFF', false],
+  [1, 0.5, 1.15, '#7C6CFF', false],
+  [0, 0.58, 1.2, '#FFC83D', true],
+  [1, 0.7, 1.0, '#FFC83D', false],
+  [0, 0.8, 1.05, '#10B26C', true],
+  [1, 0.9, 1.1, '#10B26C', true],
 ]
 
-function City({ trucks, onFrame }: { trucks: Truck[]; onFrame: () => void }) {
+// `load` (0..1) = this hour's entries relative to the busiest hour: it sets how many pedestrians are out and how fast trucks roll.
+function City({ trucks, load, onFrame }: { trucks: Truck[]; load: number; onFrame: () => void }) {
+  const crowd = Math.max(2, Math.round(2 + load * 8))
   const lanes = useMemo(() => [loop(4.9, 1.4), loop(6.4, 1.8, true)], [])
   const walks = useMemo(() => [loop(7.6, 2.25), loop(7.6, 2.25, true)], [])
   const infos = useMemo<Info[]>(() => STOPS.map((s) => ({ t: -1, u: s.start, lane: s.lane, bed: new THREE.Vector3() })), [])
@@ -278,14 +293,14 @@ function City({ trucks, onFrame }: { trucks: Truck[]; onFrame: () => void }) {
   return (
     <>
       <ambientLight intensity={0.85} />
-      <directionalLight position={[10, 18, 8]} intensity={1.6} castShadow={!MOBILE} shadow-mapSize={[1024, 1024]} shadow-camera-left={-16} shadow-camera-right={16} shadow-camera-top={16} shadow-camera-bottom={-16} />
+      <directionalLight position={[10, 18, 8]} intensity={1.6} castShadow={!MOBILE} shadow-mapSize={[2048, 2048]} shadow-camera-left={-22} shadow-camera-right={22} shadow-camera-top={22} shadow-camera-bottom={-22} />
       <hemisphereLight args={['#BFE0FF', '#CFEFD9', 0.5]} />
       <World />
       {STOPS.map((s, i) => (
-        <TruckModel key={i} curve={lanes[s.lane]} color={s.color} start={s.start} stopU={stopUs[i]} speed={s.speed} parked={trucks[i]?.status === 'offline'} info={infos[i]} all={infos} />
+        <TruckModel key={i} curve={lanes[s.lane]} color={s.color} start={s.start} stopU={stopUs[i]} speed={s.speed} pace={0.6 + 0.8 * load} parked={trucks[i]?.status === 'offline'} info={infos[i]} all={infos} />
       ))}
       {STOPS.map((s, i) => <Runner key={i} curve={lanes[s.lane]} stop={s} info={infos[i]} />)}
-      {WALKERS.map(([w, u, sp, c, bag], i) => <Person key={i} curve={walks[w]} start={u} speed={sp} shirt={c} bag={bag} />)}
+      {WALKERS.map(([w, u, sp, c, bag], i) => <Person key={i} curve={walks[w]} start={u} speed={sp} shirt={c} bag={bag} show={i < crowd} />)}
       <Rig onFrame={onFrame} />
     </>
   )
@@ -293,7 +308,7 @@ function City({ trucks, onFrame }: { trucks: Truck[]; onFrame: () => void }) {
 
 const hasWebGL = () => { try { const c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')) } catch { return false } }
 
-export default function Scene3D({ trucks }: { trucks: Truck[] }) {
+export default function Scene3D({ trucks, load = 0.6 }: { trucks: Truck[]; load?: number }) {
   const ok = useMemo(hasWebGL, [])
   const [ready, setReady] = useState(false)
   if (!ok) return <AdminScene trucks={trucks} /> // static-ish SVG fallback
@@ -301,7 +316,7 @@ export default function Scene3D({ trucks }: { trucks: Truck[] }) {
     <div className="scene3d" role="img" aria-label="ฉากเมืองจำลอง: รถเก็บขยะวิ่งวนและเทขยะที่ศูนย์รีไซเคิล มีผู้คนเดินอยู่รอบๆ">
       {!ready && <AdminScene trucks={trucks} />}{/* placeholder until the first 3D frame */}
       <Canvas flat orthographic shadows={!MOBILE} dpr={[1, 1.5]} frameloop={REDUCE ? 'demand' : 'always'} camera={{ position: [17, 16, 17], zoom: 20, near: -80, far: 120 }} gl={{ alpha: true, antialias: true }}> 
-        <City trucks={trucks} onFrame={() => setReady(true)} />
+        <City trucks={trucks} load={load} onFrame={() => setReady(true)} />
       </Canvas>
     </div>
   )

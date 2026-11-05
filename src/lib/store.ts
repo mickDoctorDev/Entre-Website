@@ -104,28 +104,23 @@ export async function setStatus(tid: string, status: Status) {
   }
   emit({ ...state, trucks: state.trucks.map((t) => (t.id === tid ? { ...t, status, updatedAt: Date.now() } : t)), feed: [feed('status', `${tr.name} → ${status}`), ...state.feed].slice(0, 30) })
 }
-/** Award T Points to a member by email. Returns an error message, or null on success. */
-export async function awardPoints(email: string, amount: number): Promise<string | null> {
+/** Award T Points. `who` is an email or a member_code (M-1234). Returns an error message, or null on success. */
+export async function awardTo(who: string, amount: number): Promise<string | null> {
   if (sb) {
-    const { error } = await sb.rpc('award_points_by_email', { p_email: email, p_amount: amount })
+    let { error } = await sb.rpc('award_points_to', { p_who: who, p_amount: amount })
+    // PGRST202 = function not found: migration 0005 isn't applied yet, so use the older per-identifier functions
+    if (error?.code === 'PGRST202') {
+      ;({ error } = /^M-\d+$/i.test(who) ? await sb.rpc('award_points', { p_code: who, p_amount: amount }) : await sb.rpc('award_points_by_email', { p_email: who, p_amount: amount }))
+    }
     if (error) {
       const m = error.message
-      return m.includes('unknown member') ? 'ไม่พบสมาชิกที่ใช้อีเมลนี้' : m.includes('staff only') ? 'บัญชีนี้ไม่มีสิทธิ์มอบ T Point' : 'เกิดข้อผิดพลาด ลองใหม่อีกครั้ง'
+      return m.includes('unknown member') ? 'ไม่พบสมาชิกนี้ (ตรวจอีเมลหรือรหัสสมาชิก)'
+        : m.includes('admin only') ? 'การเพิ่มด้วยรหัสสมาชิกใช้ได้เฉพาะ admin'
+        : m.includes('staff only') || m.includes('permission denied') ? 'บัญชีนี้ไม่มีสิทธิ์มอบ T Point (ต้องเป็น staff/admin)'
+        : m.includes('amount') ? 'จำนวนเกินสิทธิ์ (staff 1–20, admin 1–500)'
+        : `เพิ่มไม่สำเร็จ: ${m.slice(0, 120)}`
     }
   }
-  emit({ ...state, tIssued: state.tIssued + amount, feed: [feed('earn', `${email} ได้รับ +${amount} T · เจ้าหน้าที่ยืนยัน`), ...state.feed].slice(0, 30) })
-  return null
-}
-
-/** Admin only: add points by member_code with a free amount. Returns an error message, or null on success. */
-export async function awardByCode(code: string, amount: number): Promise<string | null> {
-  if (sb) {
-    const { error } = await sb.rpc('award_points', { p_code: code, p_amount: amount })
-    if (error) {
-      const m = error.message
-      return m.includes('unknown member') ? 'ไม่พบรหัสสมาชิกนี้' : m.includes('admin only') ? 'เฉพาะ admin เท่านั้นที่เพิ่ม Point ได้' : m.includes('amount') ? 'จำนวนต้องอยู่ระหว่าง 1–500' : 'เกิดข้อผิดพลาด ลองใหม่อีกครั้ง'
-    }
-  }
-  emit({ ...state, tIssued: state.tIssued + amount, feed: [feed('earn', `${code} ได้รับ +${amount} T · admin`), ...state.feed].slice(0, 30) })
+  emit({ ...state, tIssued: state.tIssued + amount, feed: [feed('earn', `${who} ได้รับ +${amount} T · เจ้าหน้าที่ยืนยัน`), ...state.feed].slice(0, 30) })
   return null
 }
