@@ -2,9 +2,11 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 
 import { isMock, sb } from './supabase'
 
+export type Role = 'member' | 'staff' | 'admin'
 export interface User { id: string; email: string; name: string }
 interface Ctx {
   user: User | null; loading: boolean
+  role: Role | null // null until known
   signIn: (email: string, pw: string) => Promise<string | null>
   signUp: (name: string, email: string, pw: string) => Promise<string | null>
   signOut: () => Promise<void>
@@ -25,6 +27,17 @@ const fromSb = (u: { id: string; email?: string; user_metadata?: { display_name?
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(isMock ? mockUser() : null)
   const [loading, setLoading] = useState(!isMock)
+  const [role, setRole] = useState<Role | null>(null)
+
+  useEffect(() => {
+    if (!user) return setRole(null)
+    // shortcut: in mock mode an email starting with "admin" counts as admin, so both paths are testable.
+    if (!sb) return setRole(user.email.startsWith('admin') ? 'admin' : 'member')
+    let stale = false
+    sb.from('profiles').select('role').eq('id', user.id).maybeSingle()
+      .then(({ data }) => { if (!stale) setRole((data?.role as Role) ?? 'member') })
+    return () => { stale = true }
+  }, [user])
 
   useEffect(() => {
     if (!sb) return
@@ -34,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo<Ctx>(() => ({
-    user, loading,
+    user, loading, role,
     async signIn(email, pw) {
       if (!sb) {
         const u = (read(MOCK_USERS) ?? {})[email]
@@ -59,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (sb) await sb.auth.signOut()
       else { localStorage.removeItem(MOCK_SESSION); setUser(null) }
     },
-  }), [user, loading])
+  }), [user, loading, role])
 
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>
 }

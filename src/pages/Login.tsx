@@ -6,7 +6,7 @@ import { isMock } from '../lib/supabase'
 type Errs = Partial<Record<'name' | 'email' | 'pw' | 'form', string>>
 
 export default function Login() {
-  const { user, signIn, signUp, signOut } = useAuth()
+  const { user, role, signIn, signUp, signOut } = useAuth()
   const nav = useNavigate()
   const from = (useLocation().state as { from?: string } | null)?.from ?? '/'
   const [mode, setMode] = useState<'in' | 'up'>('in')
@@ -22,6 +22,8 @@ export default function Login() {
         <div className="auth-card">
           <span className="avatar big">{user.name.slice(0, 1).toUpperCase()}</span>
           <h1>{user.name}</h1><p className="sub">{user.email}</p>
+          {role && role !== 'member' && <span className="role-badge">{role.toUpperCase()}</span>}
+          {role && role !== 'member' && <Link to="/admin" className="btn btn-g wide">เปิดหน้าผู้ดูแล (Admin)</Link>}
           <button className="btn btn-p" onClick={signOut}>ออกจากระบบ</button>
         </div>
       </div>

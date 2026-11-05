@@ -325,3 +325,9 @@ a{color:inherit;text-decoration:none}
 .pts .award input{width:100%;min-height:44px}
 .pts .feed{grid-column:auto}
 @media (max-width:900px){.pts{grid-template-columns:1fr}}
+
+/* admin entry points for staff/admin accounts */
+.adminchip{margin-left:6px;background:linear-gradient(135deg,#7C6CFF,#2F9BFF);color:#fff;font-weight:700;box-shadow:0 4px 12px rgba(124,108,255,.35)}
+.adminchip:focus-visible{outline:3px solid var(--text);outline-offset:2px}
+.role-badge{justify-self:center;padding:3px 12px;border-radius:999px;background:linear-gradient(135deg,#7C6CFF,#2F9BFF);color:#fff;font-size:12px;font-weight:700;letter-spacing:1px}
+.auth-card .btn.wide.btn-g{background:var(--sky-soft);color:var(--sky-d);box-shadow:none}

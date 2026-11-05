@@ -19,7 +19,7 @@ export default function Home() {
   const [toast, setToast] = useState('')
   const cards = useRef<Record<string, HTMLElement | null>>({})
   const time = useClock()
-  const { user } = useAuth()
+  const { user, role } = useAuth()
   const nav = useNavigate()
   const { wallet, reload } = useWallet()
   const [busy, setBusy] = useState(false)
@@ -51,6 +51,7 @@ export default function Home() {
         <div>
           <button className="city">ปทุมวัน, กรุงเทพฯ <IconChevron /></button>
           <div className="chip glass">☀ 31°C · {time}</div>
+          {role && role !== 'member' && <Link to="/admin" className="chip adminchip">⚙ {role === 'admin' ? 'Admin' : 'Staff'}</Link>}
         </div>
         <Link id="login-target" to={user ? '/wallet' : '/login'} className="tbadge glass">
           <span className="tcoin">T</span>
