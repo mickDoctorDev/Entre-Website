@@ -2,8 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { awardByCode, useStore } from '../lib/store'
 
 // Admin-only page: add T Points to a member by member_code with a chosen amount.
-export default function AdminPoints() {
-  const { feed } = useStore()
+export function PointsForm() {
   const [code, setCode] = useState('')
   const [amount, setAmount] = useState('10')
   const [err, setErr] = useState('')
@@ -22,11 +21,9 @@ export default function AdminPoints() {
     setErr(msg ?? '')
     if (!msg) { setCode(''); setOk(`เพิ่ม +${n} T ให้ ${c} แล้ว`) }
   }
-  const recent = feed.filter((f) => f.kind === 'earn').slice(0, 8)
-
   return (
-    <section className="grid pts">
-      <div className="glass panel award">
+    <>
+      <div className="glass panel award pts">
         <h2>Add T Points <small>admin only</small></h2>
         <form onSubmit={submit} noValidate>
           <label>รหัสสมาชิก (member_code)
@@ -42,11 +39,18 @@ export default function AdminPoints() {
           {ok && <p className="ok" role="status">{ok}</p>}
         </div>
       </div>
-      <div className="glass panel feed">
-        <h2>Recent awards</h2>
-        {recent.length === 0 && <p className="sub">ยังไม่มีรายการ</p>}
-        <ul>{recent.map((f) => <li key={f.id} className="k-earn"><time>{new Date(f.t).toLocaleTimeString('en-GB')}</time>{f.text}</li>)}</ul>
-      </div>
-    </section>
+    </>
+  )
+}
+
+export function RecentAwards() {
+  const { feed } = useStore()
+  const recent = feed.filter((f) => f.kind === 'earn').slice(0, 8)
+  return (
+    <div className="glass panel feed">
+      <h2>Recent awards</h2>
+      {recent.length === 0 && <p className="sub">ยังไม่มีรายการ</p>}
+      <ul>{recent.map((f) => <li key={f.id} className="k-earn"><time>{new Date(f.t).toLocaleTimeString('en-GB')}</time>{f.text}</li>)}</ul>
+    </div>
   )
 }
