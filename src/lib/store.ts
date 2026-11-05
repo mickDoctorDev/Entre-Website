@@ -104,12 +104,15 @@ export async function setStatus(tid: string, status: Status) {
   }
   emit({ ...state, trucks: state.trucks.map((t) => (t.id === tid ? { ...t, status, updatedAt: Date.now() } : t)), feed: [feed('status', `${tr.name} → ${status}`), ...state.feed].slice(0, 30) })
 }
-/** Returns an error message, or null on success. */
-export async function awardPoints(member: string, amount: number): Promise<string | null> {
+/** Award T Points to a member by email. Returns an error message, or null on success. */
+export async function awardPoints(email: string, amount: number): Promise<string | null> {
   if (sb) {
-    const { error } = await sb.rpc('award_points', { p_code: member, p_amount: amount })
-    if (error) return error.message
+    const { error } = await sb.rpc('award_points_by_email', { p_email: email, p_amount: amount })
+    if (error) {
+      const m = error.message
+      return m.includes('unknown member') ? 'ไม่พบสมาชิกที่ใช้อีเมลนี้' : m.includes('staff only') ? 'บัญชีนี้ไม่มีสิทธิ์มอบ T Point' : 'เกิดข้อผิดพลาด ลองใหม่อีกครั้ง'
+    }
   }
-  emit({ ...state, tIssued: state.tIssued + amount, feed: [feed('earn', `${member} ได้รับ +${amount} T · เจ้าหน้าที่ยืนยัน`), ...state.feed].slice(0, 30) })
+  emit({ ...state, tIssued: state.tIssued + amount, feed: [feed('earn', `${email} ได้รับ +${amount} T · เจ้าหน้าที่ยืนยัน`), ...state.feed].slice(0, 30) })
   return null
 }

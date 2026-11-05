@@ -13,15 +13,18 @@ export default function Admin() {
   const [member, setMember] = useState('')
   const [amt, setAmt] = useState(1)
   const [err, setErr] = useState('')
+  const [done, setDone] = useState('')
   useEffect(() => { const i = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(i) }, [])
 
   const online = s.trucks.filter((t) => t.status !== 'offline').length
   const submit = async (e: FormEvent) => {
     e.preventDefault()
-    const code = member.trim().toUpperCase()
-    if (!/^M-\d{4,}$/.test(code)) return setErr('รูปแบบรหัสสมาชิก: M-1234')
-    const msg = await awardPoints(code, amt)
-    setErr(msg ?? ''); if (!msg) setMember('')
+    const email = member.trim().toLowerCase()
+    setDone('')
+    if (!/^\S+@\S+\.\S+$/.test(email)) return setErr('รูปแบบอีเมลไม่ถูกต้อง')
+    const msg = await awardPoints(email, amt)
+    setErr(msg ?? '')
+    if (!msg) { setMember(''); setDone(`มอบ +${amt} T ให้ ${email} แล้ว`) }
   }
 
   return (
@@ -84,11 +87,12 @@ export default function Admin() {
           <div className="glass panel award">
             <h2>Award T Points <small>staff confirm</small></h2>
             <form onSubmit={submit}>
-              <input value={member} onChange={(e) => setMember(e.target.value)} placeholder="M-1234" aria-label="รหัสสมาชิก" aria-invalid={!!err} />
+              <input type="email" inputMode="email" value={member} onChange={(e) => setMember(e.target.value)} placeholder="member@email.com" aria-label="อีเมลสมาชิก" aria-invalid={!!err} />
               <select value={amt} onChange={(e) => setAmt(+e.target.value)} aria-label="จำนวน T">{[1, 2, 3, 5, 10].map((n) => <option key={n} value={n}>+{n} T</option>)}</select>
               <button className="neon">Award</button>
             </form>
             {err && <p className="err" role="alert">{err}</p>}
+            {done && <p className="ok" role="status">{done}</p>}
           </div>
 
           <div className="glass panel feed">
