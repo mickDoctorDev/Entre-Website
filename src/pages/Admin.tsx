@@ -5,7 +5,7 @@ import { ago } from '../lib/geo'
 import { awardPoints, setStatus, useStore, type Status } from '../lib/store'
 
 const WASTE = [['ขยะทั่วไป', 38, '#7FA896'], ['รีไซเคิล', 31, '#3DFFA0'], ['เศษอาหาร', 22, '#B6F23D'], ['อันตราย', 9, '#FF6B6B']] as const
-const NAV = ['Overview', 'Fleet', 'Points', 'Stations', 'Settings']
+const NAV = ['Overview', 'Fleet', 'Points', 'Settings']
 
 export default function Admin() {
   const s = useStore()
@@ -51,7 +51,7 @@ export default function Admin() {
         <section className="grid">
           <div className="glass panel radar">
             <h2>Live fleet radar</h2>
-            <CityMap trucks={s.trucks} stations={s.stations} dark radar fit="meet" />
+            <CityMap trucks={s.trucks} dark radar fit="meet" />
           </div>
 
           <div className="glass panel fleet">

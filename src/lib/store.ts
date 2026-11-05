@@ -5,9 +5,8 @@ import { sb } from './supabase'
 
 export type Status = 'available' | 'busy' | 'offline'
 export interface Truck { id: string; name: string; zone: string; status: Status; lat: number; lng: number; queue: number; updatedAt: number; wp: number }
-export interface Station { id: string; name: string; lat: number; lng: number }
 export interface FeedItem { id: number; t: number; kind: 'earn' | 'redeem' | 'status' | 'gps'; text: string }
-export interface State { trucks: Truck[]; stations: Station[]; feed: FeedItem[]; entries: number; tIssued: number; kg: number; hourly: number[] }
+export interface State { trucks: Truck[]; feed: FeedItem[]; entries: number; tIssued: number; kg: number; hourly: number[] }
 
 // Patrol loops in map units (x,y).
 const route: Record<string, [number, number][]> = {
@@ -27,19 +26,16 @@ const trucks: Truck[] = meta.map(([id, zone, status, queue], i) => {
   const [x, y] = route[id][0]
   return { id, name: `Truck 0${i + 1}`, zone, status, queue, ...fromXY(x, y), wp: 1 % route[id].length, updatedAt: status === 'offline' ? now - 240000 : now }
 })
-const stations: Station[] = ([[165, 255, 'สยาม'], [285, 335, 'พารากอน'], [85, 290, 'สนามกีฬาฯ'], [215, 200, 'ราชประสงค์']] as const)
-  .map(([x, y, n], i) => ({ id: `s${i + 1}`, name: `Eco Station ${n}`, ...fromXY(x, y) }))
-
-// With Supabase configured, trucks/stations come from the DB (+realtime); feed & KPIs stay mock until those tables exist.
+// With Supabase configured, trucks come from the DB (+realtime); feed & KPIs stay mock until those tables exist.
 interface TruckRow { id: string; name: string; zone: string; status: Status; lat: number; lng: number; queue_est: number; updated_at: string }
 const fromRow = (r: TruckRow): Truck => ({ id: r.id, name: r.name, zone: r.zone, status: r.status, lat: r.lat, lng: r.lng, queue: r.queue_est, updatedAt: Date.parse(r.updated_at), wp: 0 })
 
 let id = 0
 const feed = (kind: FeedItem['kind'], text: string): FeedItem => ({ id: ++id, t: Date.now(), kind, text })
 let state: State = {
-  trucks: sb ? [] : trucks, stations: sb ? [] : stations, entries: 312, tIssued: 640, kg: 428.6,
+  trucks: sb ? [] : trucks, entries: 312, tIssued: 640, kg: 428.6,
   hourly: [3, 5, 9, 14, 22, 31, 28, 35, 41, 38, 26, 18],
-  feed: [feed('earn', 'M-1042 ได้รับ +3 T · Eco Station สยาม'), feed('redeem', 'M-0877 ใช้ 1 T · Truck 01'), feed('status', 'Truck 06 ออฟไลน์ (ไม่มีสัญญาณ GPS)'), feed('earn', 'M-2210 ได้รับ +2 T · Eco Station ราชประสงค์')],
+  feed: [feed('earn', 'M-1042 ได้รับ +3 T · Truck 01'), feed('redeem', 'M-0877 ใช้ 1 T · Truck 01'), feed('status', 'Truck 06 ออฟไลน์ (ไม่มีสัญญาณ GPS)'), feed('earn', 'M-2210 ได้รับ +2 T · Truck 05')],
 }
 
 const listeners = new Set<() => void>()
@@ -58,14 +54,16 @@ let tickN = 0
 function tick() {
   tickN++
   let { feed: fd, entries, tIssued, kg, hourly } = state
+  const live = state.trucks.filter((t) => t.status !== 'offline')
   if (tickN % 2 === 0) {
     const member = `M-${1000 + rnd(9000)}`
     if (Math.random() < 0.55) {
-      const n = 1 + rnd(4), st = state.stations[rnd(state.stations.length)]
-      fd = [feed('earn', `${member} ได้รับ +${n} T · ${st.name}`), ...fd].slice(0, 30); tIssued += n; kg += n * 0.7
+      // sorting bins are locked on the trucks, so points are earned at a truck
+      const n = 1 + rnd(4), tr = live[rnd(live.length)]
+      if (tr) { fd = [feed('earn', `${member} ได้รับ +${n} T · ${tr.name}`), ...fd].slice(0, 30); tIssued += n; kg += n * 0.7 }
     } else {
-      const tr = state.trucks.filter((t) => t.status !== 'offline')[rnd(5)] ?? state.trucks[0]
-      fd = [feed('redeem', `${member} ใช้ 1 T · ${tr.name}`), ...fd].slice(0, 30); entries++; hourly = [...hourly.slice(0, -1), hourly[hourly.length - 1] + 1]
+      const tr = live[rnd(live.length)]
+      if (tr) { fd = [feed('redeem', `${member} ใช้ 1 T · ${tr.name}`), ...fd].slice(0, 30); entries++; hourly = [...hourly.slice(0, -1), hourly[hourly.length - 1] + 1] }
     }
   }
   emit({ ...state, trucks: sb ? state.trucks : state.trucks.map(step), feed: fd, entries, tIssued, kg, hourly })
@@ -73,9 +71,9 @@ function tick() {
 
 async function load() {
   if (!sb) return
-  const [t, s] = await Promise.all([sb.from('trucks').select('*').order('name'), sb.from('stations').select('*')])
-  if (t.error || s.error) return console.error('Supabase load failed', t.error ?? s.error)
-  emit({ ...state, trucks: (t.data as TruckRow[]).map(fromRow), stations: s.data })
+  const t = await sb.from('trucks').select('*').order('name')
+  if (t.error) return console.error('Supabase load failed', t.error)
+  emit({ ...state, trucks: (t.data as TruckRow[]).map(fromRow) })
 }
 
 let timer: ReturnType<typeof setInterval> | undefined

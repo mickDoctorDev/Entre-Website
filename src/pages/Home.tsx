@@ -10,13 +10,11 @@ import { useStore } from '../lib/store'
 import { redeemToilet, useWallet } from '../lib/wallet'
 
 const USER = fromXY(190, 300) // mock device location (Siam). Replace with navigator.geolocation later.
-const FILTERS = [['all', 'ทั้งหมด'], ['available', 'ว่างตอนนี้'], ['trucks', 'รถห้องน้ำ'], ['stations', 'จุดแยกขยะ']] as const
-type Filter = (typeof FILTERS)[number][0]
 const STATUS = { available: 'ว่าง', busy: 'คนเยอะ', offline: 'ออฟไลน์' } as const
 
 export default function Home() {
-  const { trucks, stations } = useStore()
-  const [filter, setFilter] = useState<Filter>('all')
+  const { trucks } = useStore()
+  const [open, setOpen] = useState(false) // cards stay hidden until the first pin tap, so the map is fully visible on landing
   const [picked, setPicked] = useState<string>()
   const [toast, setToast] = useState('')
   const cards = useRef<Record<string, HTMLElement | null>>({})
@@ -26,15 +24,11 @@ export default function Home() {
   const { wallet, reload } = useWallet()
   const [busy, setBusy] = useState(false)
 
-  const list = useMemo(
-    () => trucks.map((t) => ({ t, d: distM(USER, t) })).filter(({ t }) => t.status !== 'offline' || filter === 'all' || filter === 'trucks').sort((a, b) => a.d - b.d),
-    [trucks, filter],
-  )
+  const list = useMemo(() => trucks.map((t) => ({ t, d: distM(USER, t) })).sort((a, b) => a.d - b.d), [trucks])
   const near = list.find(({ t }) => t.status !== 'offline')
-  const shown = filter === 'available' ? list.filter(({ t }) => t.status === 'available') : list
   const selected = picked ?? near?.t.id
 
-  useEffect(() => { if (picked) cards.current[picked]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }) }, [picked])
+  useEffect(() => { if (picked) cards.current[picked]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }) }, [picked, open])
   const say = (m: string) => { setToast(m); setTimeout(() => setToast(''), 2500) }
   const use = async (truckId: string, truckName: string) => {
     if (!user) return nav('/login', { state: { from: '/' } })
@@ -48,9 +42,8 @@ export default function Home() {
 
   return (
     <div className="app">
-      <CityMap trucks={filter === 'available' ? trucks.filter((t) => t.status === 'available') : trucks} stations={stations} user={USER}
-        nearestId={near?.t.id} nearestDist={near?.d} selectedId={selected} onSelect={setPicked}
-        showTrucks={filter !== 'stations'} showStations={filter === 'all' || filter === 'stations'} />
+      <CityMap trucks={trucks} user={USER} pannable nearestId={near?.t.id} nearestDist={near?.d} selectedId={selected}
+        onSelect={(id) => { setPicked(id); setOpen(true) }} />
 
       <header className="top">
         <div>
@@ -64,30 +57,26 @@ export default function Home() {
         </Link>
       </header>
 
-      <section className="sheet" aria-label="รถห้องน้ำใกล้คุณ">
-        <div className="chips" role="tablist">
-          {FILTERS.map(([k, l]) => (
-            <button key={k} role="tab" aria-selected={filter === k} className={`fchip${filter === k ? ' on' : ''}`} onClick={() => setFilter(k)}>{l}</button>
-          ))}
-        </div>
-        <div className="cards">
-          {shown.length === 0 && <div className="card empty">ตอนนี้ยังไม่มีรถห้องน้ำที่ว่าง</div>}
-          {shown.map(({ t, d }) => (
-            <article key={t.id} ref={(el) => { cards.current[t.id] = el }} className={`card${selected === t.id ? ' sel' : ''}${t.status === 'offline' ? ' off' : ''}`}>
-              <div className="card-tags">
-                {t.id === near?.t.id && <span className="tag tag-near">ใกล้ที่สุด</span>}
-                <span className={`tag tag-${t.status}`}>{STATUS[t.status]}</span>
-              </div>
-              <h3>{t.name} · {t.zone}</h3>
-              <p className="meta"><IconNav /> {fmtDist(d)} · เดิน {walkMin(d)} นาที · คิว ~{t.queue} คน</p>
-              <div className="card-act">
-                <button className="btn btn-p" disabled={t.status === 'offline' || busy} onClick={() => use(t.id, `${t.name} · ${t.zone}`)}>ใช้ 1 T</button>
-                <a className="btn btn-g" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/dir/?api=1&destination=${t.lat},${t.lng}`}>นำทาง</a>
-              </div>
-            </article>
-          ))}
-        </div>
-      </section>
+      {open && (
+        <section className="sheet" aria-label="รถห้องน้ำใกล้คุณ">
+          <button className="sheet-x" onClick={() => setOpen(false)} aria-label="ซ่อนรายการรถ">×</button>
+          <div className="cards">
+            {list.map(({ t, d }) => (
+              <article key={t.id} ref={(el) => { cards.current[t.id] = el }} className={`card${selected === t.id ? ' sel' : ''}${t.status === 'offline' ? ' off' : ''}`}>
+                <div className="card-h">
+                  <h3>{t.name} · {t.zone}</h3>
+                  <span className={`tag tag-${t.status}`}>{STATUS[t.status]}</span>
+                </div>
+                <p className="meta"><IconNav /> {fmtDist(d)} · เดิน {walkMin(d)} นาที · คิว ~{t.queue} คน{t.id === near?.t.id && ' · ใกล้ที่สุด'}</p>
+                <div className="card-act">
+                  <button className="btn btn-p" disabled={t.status === 'offline' || busy} onClick={() => use(t.id, `${t.name} · ${t.zone}`)}>ใช้ 1 T</button>
+                  <a className="btn btn-g" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/dir/?api=1&destination=${t.lat},${t.lng}`}>นำทาง</a>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       <BottomNav active="map" />
       {toast && <div className="toast" role="status">{toast}</div>}

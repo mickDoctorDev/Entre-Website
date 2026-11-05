@@ -1,10 +1,11 @@
-import type { Station, Truck } from '../lib/store'
+import { useRef, useState } from 'react'
+import type { Truck } from '../lib/store'
 import { toXY, fmtDist, type LL } from '../lib/geo'
 
 type Props = {
-  trucks: Truck[]; stations?: Station[]; user?: LL; nearestId?: string; selectedId?: string
+  trucks: Truck[]; user?: LL; nearestId?: string; selectedId?: string
   onSelect?: (id: string) => void; dark?: boolean; radar?: boolean; fit?: 'slice' | 'meet'
-  showTrucks?: boolean; showStations?: boolean; nearestDist?: number
+  pannable?: boolean; nearestDist?: number
 }
 
 const Tree = ({ x, y, s = 1 }: { x: number; y: number; s?: number }) => (
@@ -68,29 +69,44 @@ const Label = ({ text, accent }: { text: string; accent?: boolean }) => {
   )
 }
 
-export default function CityMap({ trucks, stations = [], user, nearestId, selectedId, onSelect, dark, radar, fit = 'slice', showTrucks = true, showStations = true, nearestDist }: Props) {
+const LIM_X = 90, LIM_Y = 120 // pan limits in map units, so the drawn city never runs out
+const clamp = (v: number, m: number) => Math.max(-m, Math.min(m, v))
+
+export default function CityMap({ trucks, user, nearestId, selectedId, onSelect, dark, radar, fit = 'slice', pannable, nearestDist }: Props) {
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const ref = useRef<SVGSVGElement>(null)
+  const drag = useRef<{ px: number; py: number; ox: number; oy: number; k: number; moved: boolean } | null>(null)
+  const down = (e: React.PointerEvent) => {
+    const r = ref.current!.getBoundingClientRect()
+    drag.current = { px: e.clientX, py: e.clientY, ox: pan.x, oy: pan.y, k: Math.max(r.width / 400, r.height / 640), moved: false }
+  }
+  const move = (e: React.PointerEvent) => {
+    const d = drag.current
+    if (!d) return
+    const dx = e.clientX - d.px, dy = e.clientY - d.py
+    if (!d.moved) {
+      if (Math.hypot(dx, dy) < 6) return // below threshold it is still a tap on a pin
+      d.moved = true; ref.current!.setPointerCapture(e.pointerId)
+    }
+    setPan({ x: clamp(d.ox + dx / d.k, LIM_X), y: clamp(d.oy + dy / d.k, LIM_Y) })
+  }
   const u = user && toXY(user)
   const ordered = [...trucks].sort((a, b) => Number(a.id === nearestId) - Number(b.id === nearestId))
   return (
-    <svg viewBox="0 0 400 640" preserveAspectRatio={`xMidYMid ${fit}`} className={`citymap ${dark ? 'map-dark' : 'map-light'}`} role="img" aria-label="แผนที่รถห้องน้ำเขตปทุมวัน">
+    <>
+    <svg ref={ref} viewBox="0 0 400 640" preserveAspectRatio={`xMidYMid ${fit}`} className={`citymap ${dark ? 'map-dark' : 'map-light'}${pannable ? ' pannable' : ''}`} role="img" aria-label="แผนที่รถห้องน้ำเขตปทุมวัน"
+      onPointerDown={pannable ? down : undefined} onPointerMove={pannable ? move : undefined} onPointerUp={() => (drag.current = null)} onPointerCancel={() => (drag.current = null)}>
+      <g style={{ transform: `translate(${pan.x}px,${pan.y}px)` }}>
       <Art clouds={!dark} />
       {radar && <g className="sweep"><path d="M200 250 L200 -150 A400 400 0 0 1 420 -60 Z" /></g>}
-      {showStations && stations.map((s) => {
-        const { x, y } = toXY(s)
-        return (
-          <Pin key={s.id} x={x} y={y} label={s.name}>
-            <circle r="11" className="st-bin" /><text textAnchor="middle" y="4" className="st-bin-t">♻</text>
-            <Label text="แยกขยะ +T" />
-          </Pin>
-        )
-      })}
-      {showTrucks && ordered.map((t) => {
+      {ordered.map((t) => {
         const { x, y } = toXY(t), near = t.id === nearestId
         return (
           <Pin key={t.id} x={x} y={y} label={`${t.name} ${t.status}`} onClick={() => onSelect?.(t.id)}>
             <g className={`truck st-${t.status}${near ? ' near' : ''}${selectedId === t.id ? ' sel' : ''}`}>
               {near && <><circle r="16" className="pulse" /><circle r="16" className="pulse p2" /></>}
               <circle r="15" className="t-bg" />
+              <g className="bin" transform="translate(11 -11)"><circle r="7" className="bin-b" /><text textAnchor="middle" y="3.2" className="bin-t">♻</text></g>
               <g className="t-ico"><rect x="-8" y="-6" width="10" height="9" rx="1.5" /><path d="M3 -3h4l3 3.5v2.5H3z" /><circle cx="-4" cy="5" r="2" /><circle cx="6" cy="5" r="2" /></g>
             </g>
             <Label text={near && nearestDist != null ? `ใกล้ที่สุด · ${fmtDist(nearestDist)}` : t.name} accent={near} />
@@ -102,6 +118,9 @@ export default function CityMap({ trucks, stations = [], user, nearestId, select
           <circle r="14" className="pulse user-pulse" /><circle r="7" className="user-dot" />
         </g>
       )}
+      </g>
     </svg>
+    {pannable && (pan.x !== 0 || pan.y !== 0) && <button className="recenter" onClick={() => setPan({ x: 0, y: 0 })} aria-label="กลับไปตำแหน่งของฉัน">◎</button>}
+    </>
   )
 }

@@ -44,9 +44,9 @@ a{color:inherit;text-decoration:none}
 .pulse.p2{animation-delay:1s}
 @keyframes pulse{from{transform:scale(1);opacity:.35}to{transform:scale(2.4);opacity:0}}
 .user-pulse{fill:#2F80ED}.user-dot{fill:#2F80ED;stroke:#fff;stroke-width:3}
-.st-bin{fill:#E8F6EE;stroke:#fff;stroke-width:2;filter:drop-shadow(0 3px 4px rgba(20,60,40,.2))}
-.st-bin-t{font-size:12px;fill:var(--g-d)}
-.map-dark .st-bin{fill:#0F3524;stroke:rgba(61,255,160,.5)}.map-dark .st-bin-t{fill:var(--neon)}
+/* sorting-bin badge on each truck (bins are locked to the trucks) */
+.bin-b{fill:#fff;stroke:var(--g);stroke-width:1.6}.bin-t{font-size:9px;fill:var(--g-d)}
+.map-dark .bin-b{fill:#07140E;stroke:var(--neon)}.map-dark .bin-t{fill:var(--neon)}
 .lbl{fill:rgba(255,255,255,.94);filter:drop-shadow(0 2px 3px rgba(20,60,40,.15))}
 .lbl-accent{fill:var(--g)}
 .lbl-t{font-size:8px;font-weight:700;fill:var(--text)}
@@ -204,3 +204,23 @@ a{color:inherit;text-decoration:none}
 .code{font-size:56px;letter-spacing:6px;color:var(--text)}
 .count{margin:0;font-size:18px;font-weight:600}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* pannable map */
+.citymap.pannable{touch-action:none;cursor:grab}.citymap.pannable:active{cursor:grabbing}
+.recenter{position:absolute;right:16px;top:116px;width:44px;height:44px;border-radius:50%;border:1px solid #fff;background:rgba(255,255,255,.9);box-shadow:var(--shadow);font-size:22px;color:var(--g-d);cursor:pointer;z-index:3}
+.recenter:focus-visible{outline:3px solid var(--g);outline-offset:2px}
+
+/* compact bottom UI: smaller nav, card sheet only after a pin tap */
+.sheet{padding:6px 0 76px;background:none;animation:rise2 .3s ease-out}
+.sheet-x{position:absolute;right:16px;top:-30px;width:36px;height:36px;border-radius:50%;border:1px solid #fff;background:rgba(255,255,255,.9);box-shadow:var(--shadow);font-size:20px;line-height:1;color:var(--muted);cursor:pointer}
+.cards{padding:4px 16px 8px}
+.card{flex-basis:78%;padding:12px 14px}
+.card::after{display:none}
+.card-h{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.card h3{margin:0;font-size:16px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meta{margin:6px 0 10px;font-size:12.5px}
+.nav{height:52px;width:min(78%,300px);bottom:calc(env(safe-area-inset-bottom) + 10px);padding:0 12px}
+.nav-i{min-width:56px;gap:0;font-size:10px}.nav-i svg{width:20px;height:20px}
+.nav-c{width:50px;height:50px;margin-top:-18px;border-width:3px}.nav-c svg{width:20px;height:20px}
+.toast{bottom:calc(env(safe-area-inset-bottom) + 76px)}
+@keyframes rise2{from{opacity:0;transform:translateY(16px)}}
