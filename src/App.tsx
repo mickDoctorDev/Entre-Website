@@ -3,6 +3,7 @@ import Home from './pages/Home'
 import Admin from './pages/Admin'
 import Entry from './pages/Entry'
 import Login from './pages/Login'
+import RequireStaff from './components/RequireStaff'
 import Wallet from './pages/Wallet'
 
 const Soon = () => (
@@ -15,7 +16,7 @@ export default function App() {
       <Route path="/wallet" element={<Wallet />} />
       <Route path="/entry" element={<Entry />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/admin" element={<Admin />} />
+      <Route path="/admin" element={<RequireStaff><Admin /></RequireStaff>} />
       <Route path="*" element={<Soon />} />
     </Routes>
   )

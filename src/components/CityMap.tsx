@@ -6,6 +6,7 @@ type Props = {
   trucks: Truck[]; user?: LL; nearestId?: string; selectedId?: string
   onSelect?: (id: string) => void; dark?: boolean; radar?: boolean; fit?: 'slice' | 'meet'
   pannable?: boolean; nearestDist?: number
+  route?: { id: string; to: LL } // animated path from `user` to a truck
 }
 
 const Tree = ({ x, y, s = 1 }: { x: number; y: number; s?: number }) => (
@@ -17,6 +18,14 @@ const Tree = ({ x, y, s = 1 }: { x: number; y: number; s?: number }) => (
 function Art({ clouds }: { clouds: boolean }) {
   return (
     <g>
+      <defs>
+        <linearGradient id="bgL" gradientUnits="userSpaceOnUse" x1="0" y1="-200" x2="0" y2="840">
+          <stop offset="0" stopColor="#D9ECFF" /><stop offset=".45" stopColor="#E8F8F0" /><stop offset="1" stopColor="#FFF4DC" />
+        </linearGradient>
+        <linearGradient id="routeG" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="400" y2="0">
+          <stop offset="0" stopColor="#2F9BFF" /><stop offset="1" stopColor="#10B26C" />
+        </linearGradient>
+      </defs>
       <rect x="-200" y="-200" width="800" height="1040" className="m-base" />
       {/* Saen Saeb canal */}
       <path d="M-40 118 C90 160 200 84 440 140" className="m-water" fill="none" strokeWidth="28" strokeLinecap="round" />
@@ -28,12 +37,12 @@ function Art({ clouds }: { clouds: boolean }) {
       </g>
       {/* blocks */}
       <g className="m-block">
-        <rect x="214" y="270" width="56" height="42" rx="9" /><rect x="120" y="274" width="48" height="40" rx="9" />
-        <rect x="212" y="196" width="60" height="36" rx="9" /><rect x="310" y="262" width="60" height="50" rx="9" />
-        <rect x="124" y="338" width="44" height="54" rx="9" /><rect x="214" y="350" width="52" height="46" rx="9" />
-        <rect x="312" y="358" width="56" height="44" rx="9" /><rect x="40" y="196" width="46" height="48" rx="9" />
-        <rect x="40" y="276" width="42" height="46" rx="9" /><rect x="310" y="188" width="56" height="42" rx="9" />
-        <rect x="130" y="196" width="40" height="40" rx="9" /><rect x="40" y="340" width="44" height="60" rx="9" />
+        <rect className="b1" x="214" y="270" width="56" height="42" rx="9" /><rect className="b2" x="120" y="274" width="48" height="40" rx="9" />
+        <rect className="b3" x="212" y="196" width="60" height="36" rx="9" /><rect className="b4" x="310" y="262" width="60" height="50" rx="9" />
+        <rect className="b5" x="124" y="338" width="44" height="54" rx="9" /><rect className="b1" x="214" y="350" width="52" height="46" rx="9" />
+        <rect className="b2" x="312" y="358" width="56" height="44" rx="9" /><rect className="b3" x="40" y="196" width="46" height="48" rx="9" />
+        <rect className="b4" x="40" y="276" width="42" height="46" rx="9" /><rect className="b5" x="310" y="188" width="56" height="42" rx="9" />
+        <rect className="b1" x="130" y="196" width="40" height="40" rx="9" /><rect className="b2" x="40" y="340" width="44" height="60" rx="9" />
       </g>
       {/* parks */}
       <path d="M232 440 C250 425 320 430 345 452 C365 478 340 520 300 524 C250 528 222 470 232 440Z" className="m-park" />
@@ -69,10 +78,26 @@ const Label = ({ text, accent }: { text: string; accent?: boolean }) => {
   )
 }
 
+// Stylised route: one vertical leg then one horizontal leg with a rounded corner (not real road routing).
+function Route({ a, b }: { a: { x: number; y: number }; b: { x: number; y: number } }) {
+  const r = 14, dx = Math.sign(b.x - a.x), dy = Math.sign(b.y - a.y)
+  const d = !dx || !dy || Math.abs(b.x - a.x) < r * 2 || Math.abs(b.y - a.y) < r * 2
+    ? `M${a.x} ${a.y} L${a.x} ${b.y} L${b.x} ${b.y}`
+    : `M${a.x} ${a.y} L${a.x} ${b.y - dy * r} Q${a.x} ${b.y} ${a.x + dx * r} ${b.y} L${b.x} ${b.y}`
+  return (
+    <g className="route" fill="none" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={d} pathLength={1} className="route-halo" />
+      <path d={d} pathLength={1} className="route-line" />
+      <path d={d} className="route-flow" />
+      <circle cx={b.x} cy={b.y} r="22" className="route-dest" />
+    </g>
+  )
+}
+
 const LIM_X = 90, LIM_Y = 120 // pan limits in map units, so the drawn city never runs out
 const clamp = (v: number, m: number) => Math.max(-m, Math.min(m, v))
 
-export default function CityMap({ trucks, user, nearestId, selectedId, onSelect, dark, radar, fit = 'slice', pannable, nearestDist }: Props) {
+export default function CityMap({ trucks, user, nearestId, selectedId, onSelect, dark, radar, fit = 'slice', pannable, nearestDist, route }: Props) {
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const ref = useRef<SVGSVGElement>(null)
   const drag = useRef<{ px: number; py: number; ox: number; oy: number; k: number; moved: boolean } | null>(null)
@@ -98,6 +123,10 @@ export default function CityMap({ trucks, user, nearestId, selectedId, onSelect,
       onPointerDown={pannable ? down : undefined} onPointerMove={pannable ? move : undefined} onPointerUp={() => (drag.current = null)} onPointerCancel={() => (drag.current = null)}>
       <g style={{ transform: `translate(${pan.x}px,${pan.y}px)` }}>
       <Art clouds={!dark} />
+      {u && route && (() => {
+        const t = trucks.find((x) => x.id === route.id)
+        return t ? <Route key={route.id} a={u} b={toXY(t)} /> : null
+      })()}
       {radar && <g className="sweep"><path d="M200 250 L200 -150 A400 400 0 0 1 420 -60 Z" /></g>}
       {ordered.map((t) => {
         const { x, y } = toXY(t), near = t.id === nearestId

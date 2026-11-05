@@ -115,8 +115,8 @@ function Area({ data }: { data: number[] }) {
   const line = pts.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ')
   return (
     <svg viewBox={`0 0 ${w} ${h + 4}`} className="area" role="img" aria-label="กราฟจำนวนการเข้าห้องน้ำรายชั่วโมง">
-      <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#3DFFA0" stopOpacity=".45" /><stop offset="1" stopColor="#3DFFA0" stopOpacity="0" /></linearGradient></defs>
-      <path d={`${line} L${w} ${h} L0 ${h}Z`} fill="url(#ag)" /><path d={line} fill="none" stroke="#3DFFA0" strokeWidth="2" />
+      <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#2FD9FF" stopOpacity=".45" /><stop offset="1" stopColor="#2FD9FF" stopOpacity="0" /></linearGradient><linearGradient id="as"><stop offset="0" stopColor="#2FD9FF" /><stop offset="1" stopColor="#3DFFA0" /></linearGradient></defs>
+      <path d={`${line} L${w} ${h} L0 ${h}Z`} fill="url(#ag)" /><path d={line} fill="none" stroke="url(#as)" strokeWidth="2.5" />
       {pts.map(([x, y], i) => <circle key={i} cx={x} cy={y} r="2.5" fill="#050E09" stroke="#3DFFA0" />)}
     </svg>
   )

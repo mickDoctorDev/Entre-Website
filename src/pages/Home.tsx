@@ -23,10 +23,12 @@ export default function Home() {
   const nav = useNavigate()
   const { wallet, reload } = useWallet()
   const [busy, setBusy] = useState(false)
+  const [navTo, setNavTo] = useState<string>() // truck id we are drawing a route to
 
   const list = useMemo(() => trucks.map((t) => ({ t, d: distM(USER, t) })).sort((a, b) => a.d - b.d), [trucks])
   const near = list.find(({ t }) => t.status !== 'offline')
   const selected = picked ?? near?.t.id
+  const dest = list.find(({ t }) => t.id === navTo)
 
   useEffect(() => { if (picked) cards.current[picked]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }) }, [picked, open])
   const say = (m: string) => { setToast(m); setTimeout(() => setToast(''), 2500) }
@@ -42,7 +44,7 @@ export default function Home() {
 
   return (
     <div className="app">
-      <CityMap trucks={trucks} user={USER} pannable nearestId={near?.t.id} nearestDist={near?.d} selectedId={selected}
+      <CityMap trucks={trucks} user={USER} pannable route={navTo ? { id: navTo, to: USER } : undefined} nearestId={near?.t.id} nearestDist={near?.d} selectedId={selected}
         onSelect={(id) => { setPicked(id); setOpen(true) }} />
 
       <header className="top">
@@ -57,6 +59,15 @@ export default function Home() {
         </Link>
       </header>
 
+      {dest && (
+        <div className="routebar glass" role="status">
+          <span className="rb-dot" />
+          <span className="rb-t"><b>{dest.t.name}</b> · {fmtDist(dest.d)} · เดิน {walkMin(dest.d)} นาที</span>
+          <a className="rb-a" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/dir/?api=1&destination=${dest.t.lat},${dest.t.lng}&travelmode=walking`} aria-label="เปิดใน Google Maps">↗</a>
+          <button className="rb-x" onClick={() => setNavTo(undefined)} aria-label="ยกเลิกการนำทาง">×</button>
+        </div>
+      )}
+
       {open && (
         <section className="sheet" aria-label="รถห้องน้ำใกล้คุณ">
           <button className="sheet-x" onClick={() => setOpen(false)} aria-label="ซ่อนรายการรถ">×</button>
@@ -65,12 +76,15 @@ export default function Home() {
               <article key={t.id} ref={(el) => { cards.current[t.id] = el }} className={`card${selected === t.id ? ' sel' : ''}${t.status === 'offline' ? ' off' : ''}`}>
                 <div className="card-h">
                   <h3>{t.name} · {t.zone}</h3>
-                  <span className={`tag tag-${t.status}`}>{STATUS[t.status]}</span>
+                  <span className="tags">
+                    {t.id === near?.t.id && <span className="tag tag-near">★ ใกล้สุด</span>}
+                    <span className={`tag tag-${t.status}`}>{STATUS[t.status]}</span>
+                  </span>
                 </div>
-                <p className="meta"><IconNav /> {fmtDist(d)} · เดิน {walkMin(d)} นาที · คิว ~{t.queue} คน{t.id === near?.t.id && ' · ใกล้ที่สุด'}</p>
+                <p className="meta"><IconNav /> {fmtDist(d)} · เดิน {walkMin(d)} นาที · คิว ~{t.queue} คน</p>
                 <div className="card-act">
                   <button className="btn btn-p" disabled={t.status === 'offline' || busy} onClick={() => use(t.id, `${t.name} · ${t.zone}`)}>ใช้ 1 T</button>
-                  <a className="btn btn-g" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/dir/?api=1&destination=${t.lat},${t.lng}`}>นำทาง</a>
+                  <button className="btn btn-g" aria-pressed={navTo === t.id} onClick={() => { setNavTo(t.id); setPicked(t.id); setOpen(false) }}>{navTo === t.id ? 'กำลังนำทาง' : 'นำทาง'}</button>
                 </div>
               </article>
             ))}
